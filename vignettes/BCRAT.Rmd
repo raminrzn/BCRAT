@@ -1,0 +1,172 @@
+---
+title: "Estimating 5-year breast cancer risk with BCRAT"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Estimating 5-year breast cancer risk with BCRAT}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(BCRAT)
+```
+
+## What this package does
+
+`BCRAT` implements the NCI Breast Cancer Risk Assessment Tool, commonly known
+as the "Gail model." Given a woman's age, age at menarche, age at first live
+birth, number of prior breast biopsies (and whether any showed atypical
+hyperplasia), number of first-degree relatives with breast cancer, and
+race/ethnicity, it returns the **5-year probability of invasive breast
+cancer**.
+
+Two interfaces are provided: the vectorised `bcrat()` function and the
+ModelsCloud prediction API (`model_run()` / `get_sample_input()` /
+`get_default_input()`).
+
+## Scoring one person
+
+```{r}
+bcrat(age = 50, race = "White", age_menarche = 13, age_first_birth = 24,
+      n_biopsies = 0, n_relatives = 0)
+```
+
+Additional risk factors increase the estimate:
+
+```{r}
+bcrat(age = 55, race = "White", age_menarche = 11, age_first_birth = 22,
+      n_biopsies = 2, n_relatives = 1, atypical_hyperplasia = "yes")
+```
+
+## Race and ethnicity
+
+`race` accepts `"White"`, `"Black"`, `"Hispanic"`, `"Asian"`, or
+`"American Indian or Alaska Native"` (case-insensitive; numeric codes `0`-`5`
+also work). Two of these categories need one extra piece of information to
+match NCI's own deployed tool exactly, because the underlying science doesn't
+support a single pooled model for them:
+
+* **Hispanic** has two entirely distinct fitted models for US-born and
+  foreign-born women (not one model with a nativity adjustment) — set
+  `hispanic_nativity = "us_born"` (the default) or `"foreign_born"`.
+* **Asian** shares one relative-risk model across six SEER subgroups but each
+  has its own baseline incidence/mortality table — set `asian_subgroup` to
+  `"chinese"`, `"japanese"`, `"filipino"`, `"hawaiian"`,
+  `"other_pacific_islander"`, or `"other_asian"` (the default, NCI's own
+  catch-all for Asian ethnicities not individually tabulated).
+
+```{r}
+# Foreign-born Hispanic vs. the US-born default, all else equal
+c(us_born      = bcrat(45, "Hispanic", 12, 26, 0, 1),
+  foreign_born = bcrat(45, "Hispanic", 12, 26, 0, 1, hispanic_nativity = "foreign_born"))
+```
+
+**American Indian/Alaska Native** has no independently validated model of its
+own — NCI's deployed tool substitutes the White model in full, and so does
+this package:
+
+```{r}
+identical(
+  bcrat(50, "White", 13, 24, 1, 0),
+  bcrat(50, "American Indian or Alaska Native", 13, 24, 1, 0)
+)
+```
+
+## How the score is built
+
+The model combines a race-specific relative-risk sub-model (a small logistic
+regression on menarche age, first-birth age, biopsy count, atypical
+hyperplasia, and family history) with race-specific baseline hazards — SEER
+invasive-breast-cancer incidence and NCHS competing (non-breast-cancer)
+mortality — in a single-year discrete competing-risk life table (Gail et al.
+1989, equation 1). A few nuances worth knowing:
+
+* **Nulliparity** (`age_first_birth = "nulliparous"`) is grouped with ages
+  25-29, not with the oldest age-at-first-birth category.
+* **Unknown** values (`"unknown"`) are accepted for `age_menarche`,
+  `age_first_birth`, `n_biopsies`, `n_relatives`, and
+  `atypical_hyperplasia`, and are scored at the reference/lowest-risk
+  category — exactly as NCI's own tool handles missing data.
+* Some covariates are **inert for specific race models**: `age_first_birth`
+  never affects the Black/CARE model (its coefficient is 0, matching the
+  model's exclusion of this covariate), and `age_menarche` never affects the
+  US-born Hispanic model.
+
+```{r}
+# age_first_birth doesn't change the Black estimate
+c(early_birth = bcrat(45, "Black", 13, 20, 1, 1, "no"),
+  late_birth  = bcrat(45, "Black", 13, 35, 1, 1, "no"))
+```
+
+## Scoring a cohort
+
+```{r}
+cohort <- data.frame(
+  age             = c(50, 45, 62),
+  race            = c("White", "Black", "Hispanic"),
+  age_menarche    = c(13, 12, 14),
+  age_first_birth = c(24, "nulliparous", 26),
+  n_biopsies      = c(0, 1, 0),
+  n_relatives     = c(0, 1, 1)
+)
+cohort$risk <- bcrat(
+  age = cohort$age, race = cohort$race, age_menarche = cohort$age_menarche,
+  age_first_birth = cohort$age_first_birth, n_biopsies = cohort$n_biopsies,
+  n_relatives = cohort$n_relatives
+)
+cohort[, c("age", "race", "risk")]
+```
+
+## Using the ModelsCloud API
+
+```{r}
+get_default_input()
+
+woman <- get_default_input()
+woman$age <- 60
+model_run(woman)
+```
+
+```{r}
+model_run(get_sample_input())
+```
+
+## Caveats
+
+* Valid for ages 35-85, the range NCI's own deployed tool supports (the
+  papers' validation cohorts were generally 35 and older).
+* American Indian/Alaska Native estimates are the White model's, substituted
+  for lack of an independently validated alternative — NCI's own tool
+  disclaimer says the same.
+* NCI's own documentation notes that Hispanic estimates carry more
+  uncertainty than White/Black estimates, and that the model "needs further
+  validation for Hispanic women and other subgroups."
+* For research use only; not a substitute for clinical judgement.
+
+## References
+
+Gail MH, Brinton LA, Byar DP, et al. Projecting individualized probabilities
+of developing breast cancer for white females who are being examined
+annually. *J Natl Cancer Inst.* 1989;81(24):1879-1886.
+doi:[10.1093/jnci/81.24.1879](https://doi.org/10.1093/jnci/81.24.1879)
+
+Costantino JP, Gail MH, Pee D, et al. Validation studies for models
+projecting the risk of invasive and total breast cancer incidence.
+*J Natl Cancer Inst.* 1999;91(18):1541-1548.
+doi:[10.1093/jnci/91.18.1541](https://doi.org/10.1093/jnci/91.18.1541)
+
+Gail MH, Costantino JP, Pee D, et al. Projecting individualized absolute
+invasive breast cancer risk in African American women. *J Natl Cancer Inst.*
+2007;99(23):1782-1792.
+doi:[10.1093/jnci/djm223](https://doi.org/10.1093/jnci/djm223)
+
+Matsuno RK, Costantino JP, Ziegler RG, et al. Projecting individualized
+absolute invasive breast cancer risk in Asian and Pacific Islander American
+women. *J Natl Cancer Inst.* 2011;103(12):951-961.
+doi:[10.1093/jnci/djr154](https://doi.org/10.1093/jnci/djr154)
+
+Banegas MP, John EM, Slattery ML, et al. Projecting individualized absolute
+invasive breast cancer risk in US Hispanic women. *J Natl Cancer Inst.*
+2017;109(2):djw215.
+doi:[10.1093/jnci/djw215](https://doi.org/10.1093/jnci/djw215)

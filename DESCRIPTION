@@ -1,0 +1,38 @@
+Package: BCRAT
+Title: NCI Breast Cancer Risk Assessment Tool ('Gail Model') for ModelsCloud
+Version: 0.1.0
+Authors@R: c(
+    person("Ramin", "Rezaeianzadeh", email = "raminrzn@student.ubc.ca",
+           role = c("aut", "cre")),
+    person("Mitchell H.", "Gail", role = "ctb",
+           comment = "Author of the original breast cancer risk model"))
+Description: A self-contained implementation of the NCI Breast Cancer Risk
+    Assessment Tool (BCRAT), commonly known as the "Gail model", which
+    predicts the 5-year probability of invasive breast cancer from age,
+    age at menarche, age at first live birth, number of first-degree
+    relatives with breast cancer, number of prior breast biopsies, atypical
+    hyperplasia status, and race/ethnicity (Gail et al., J Natl Cancer Inst,
+    1989, <doi:10.1093/jnci/81.24.1879>; Costantino et al., J Natl Cancer
+    Inst, 1999, <doi:10.1093/jnci/91.18.1541>; Gail et al., J Natl Cancer
+    Inst, 2007, <doi:10.1093/jnci/djm223>; Matsuno et al., J Natl Cancer
+    Inst, 2011, <doi:10.1093/jnci/djr109>; Banegas et al., J Natl Cancer
+    Inst, 2017, <doi:10.1093/jnci/djw215>). The package exposes both the
+    vectorised model function bcrat() and the standard ModelsCloud
+    prediction API (model_run(), get_sample_input(), get_default_input())
+    for interactive use in R or deployment as a hosted model on the
+    ModelsCloud platform.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Imports:
+    jsonlite,
+    utils
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+URL: https://github.com/raminrzn/BCRAT
+BugReports: https://github.com/raminrzn/BCRAT/issues
