@@ -29,9 +29,16 @@ gateway <- function(...) {
   func <- arguments$func
   if (is.null(func)) func <- "model_run"
 
+  # The platform injects execution_id and callback_url into every request
+  # unless the service disables it. Strip them alongside the other control
+  # fields so they never reach a model function as stray arguments — otherwise
+  # a caller sending `{}` gets a "missing required variable" error built from
+  # the platform's own bookkeeping rather than the intended defaults.
   arguments$func <- NULL
   arguments$api_key <- NULL
   arguments$session_id <- NULL
+  arguments$execution_id <- NULL
+  arguments$callback_url <- NULL
 
   out <- if (length(arguments) == 0) do.call(func, list()) else do.call(func, arguments)
   jsonlite::toJSON(out, dataframe = "rows", na = "null", digits = NA)
@@ -43,11 +50,12 @@ gateway <- function(...) {
 #' that dispatch to `prism_model_run`.
 #'
 #' @param model_input See [model_run()].
+#' @param ... Additional fields supplied by the platform; ignored.
 #' @return See [model_run()].
 #' @seealso [model_run()]
 #' @export
-prism_model_run <- function(model_input = NULL) {
-  model_run(model_input)
+prism_model_run <- function(model_input = NULL, ...) {
+  model_run(model_input, ...)
 }
 
 # Lightweight availability check some clients call through the gateway. Not

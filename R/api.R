@@ -38,6 +38,17 @@
     if (length(dots) == 0) return(NULL)
     model_input <- dots
   }
+  # A JSON `null` arrives as a length-0 NULL, which as.data.frame() cannot
+  # reconcile with the length-1 fields beside it ("differing number of rows").
+  # This matters because the model's own output round-trips: hispanic_nativity
+  # and asian_subgroup are NA for anyone who isn't Hispanic/Asian, serialise as
+  # null, and come straight back in on the next call. An explicit null and an
+  # absent field mean the same thing here, so drop them and let the defaults in
+  # bcrat() apply.
+  if (is.list(model_input) && !is.data.frame(model_input)) {
+    model_input <- model_input[!vapply(model_input, is.null, logical(1))]
+    if (length(model_input) == 0) return(NULL)
+  }
   df <- as.data.frame(model_input, stringsAsFactors = FALSE)
   names(df) <- tolower(names(df))
   for (a in intersect(names(df), names(.bcrat_alias))) {
@@ -124,13 +135,14 @@ model_run <- function(model_input = NULL, ...) {
 #'
 #' @param n Optional positive integer; if supplied, the first `n` rows are
 #'   returned. Defaults to all rows.
+#' @param ... Additional fields supplied by the platform; ignored.
 #' @return A data frame of example women with the BCRAT predictor columns.
 #' @seealso [model_run()], [get_default_input()]
 #' @examples
 #' get_sample_input()
 #' get_sample_input(n = 2)
 #' @export
-get_sample_input <- function(n = NULL) {
+get_sample_input <- function(n = NULL, ...) {
   df <- data.frame(
     age                   = c(50, 45, 62, 58, 70),
     race                  = c("White", "Black", "Hispanic", "Asian", "American Indian or Alaska Native"),
@@ -157,6 +169,7 @@ get_sample_input <- function(n = NULL) {
 #' Returns a single baseline woman as a named list, ready to modify and pass
 #' to [model_run()].
 #'
+#' @param ... Additional fields supplied by the platform; ignored.
 #' @return A named list of default predictor values.
 #' @seealso [model_run()], [get_sample_input()]
 #' @examples
@@ -164,7 +177,7 @@ get_sample_input <- function(n = NULL) {
 #' woman$age <- 55
 #' model_run(woman)
 #' @export
-get_default_input <- function() {
+get_default_input <- function(...) {
   list(
     age                   = 50,
     race                  = "White",

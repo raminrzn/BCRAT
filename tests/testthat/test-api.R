@@ -50,3 +50,28 @@ test_that("get_sample_input(n) limits rows and validates n", {
   expect_equal(nrow(get_sample_input(2)), 2L)
   expect_error(get_sample_input(0), "positive integer")
 })
+
+test_that("a JSON null is treated as an absent field, not a fatal input", {
+  # hispanic_nativity/asian_subgroup are NA for anyone who isn't Hispanic or
+  # Asian, so they serialise as null and come back as NULL on the next call.
+  # Before this was handled, as.data.frame() died with "differing number of
+  # rows" and OpenCPU surfaced it as an opaque HTTP 400.
+  payload <- list(age = 50, race = "white", age_menarche = 13,
+                  age_first_birth = 24, n_biopsies = 0, n_relatives = 0,
+                  atypical_hyperplasia = "unknown",
+                  hispanic_nativity = NULL, asian_subgroup = NULL)
+  expect_no_error(out <- model_run(payload))
+  expect_equal(out$risk, bcrat(50, "white", 13, 24, 0, 0), tolerance = 1e-12)
+})
+
+test_that("the model can re-consume its own serialised output", {
+  # The platform builds its example payload from a previous response, so
+  # gateway output must survive a round trip back through model_run().
+  js <- gateway(func = "model_run", model_input = get_sample_input())
+  round_tripped <- jsonlite::fromJSON(js, simplifyVector = FALSE)
+  for (row in round_tripped) {
+    row$risk <- NULL
+    row$risk_percent <- NULL
+    expect_no_error(model_run(row))
+  }
+})

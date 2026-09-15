@@ -4,7 +4,10 @@
 \alias{get_default_input}
 \title{Default BCRAT input}
 \usage{
-get_default_input()
+get_default_input(...)
+}
+\arguments{
+\item{...}{Additional fields supplied by the platform; ignored.}
 }
 \value{
 A named list of default predictor values.

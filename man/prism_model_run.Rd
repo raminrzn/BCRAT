@@ -4,10 +4,12 @@
 \alias{prism_model_run}
 \title{Run the model via the PRISM-style entry point}
 \usage{
-prism_model_run(model_input = NULL)
+prism_model_run(model_input = NULL, ...)
 }
 \arguments{
 \item{model_input}{See \code{\link[=model_run]{model_run()}}.}
+
+\item{...}{Additional fields supplied by the platform; ignored.}
 }
 \value{
 See \code{\link[=model_run]{model_run()}}.

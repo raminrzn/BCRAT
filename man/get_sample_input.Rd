@@ -4,11 +4,13 @@
 \alias{get_sample_input}
 \title{Example BCRAT input cohort}
 \usage{
-get_sample_input(n = NULL)
+get_sample_input(n = NULL, ...)
 }
 \arguments{
 \item{n}{Optional positive integer; if supplied, the first \code{n} rows are
 returned. Defaults to all rows.}
+
+\item{...}{Additional fields supplied by the platform; ignored.}
 }
 \value{
 A data frame of example women with the BCRAT predictor columns.
